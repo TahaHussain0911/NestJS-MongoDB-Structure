@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypedConfigService } from './typed-config.service';
 import { EnvSchema } from './env.validation';
 
+@Global()
 @Module({
   imports: [ConfigModule.forRoot({ isGlobal: true })],
   providers: [

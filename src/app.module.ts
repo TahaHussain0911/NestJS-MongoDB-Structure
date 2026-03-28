@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { TypedConfigModule } from './config/typed-config.module';
 import { TypedConfigService } from './config/typed-config.service';
 import { AuthModule } from './modules/auth/auth.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuthModule } from './modules/auth/auth.module';
       },
     }),
     AuthModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService, TypedConfigService],
