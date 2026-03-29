@@ -49,3 +49,6 @@ export function convertStringToMongoIds(
     }
   }
 }
+export function getFileSizeInMbs(size: number) {
+  return Math.round(size / 1024 / 1024);
+}
