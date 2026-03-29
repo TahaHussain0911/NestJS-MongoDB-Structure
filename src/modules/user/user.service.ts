@@ -1,14 +1,19 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, PipelineStage } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UserResponseDto } from './dto/user-response.dto';
+import {
+  UserPaginatedResponseDto,
+  UserResponseDto,
+} from './dto/user-response.dto';
 import { User, UserDocument } from './user.schema';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { QueryUserDto } from './dto/query-user.dto';
 
 @Injectable()
 export class UserService {
@@ -17,18 +22,79 @@ export class UserService {
     private readonly userModel: Model<UserDocument>,
   ) {}
 
-  async findById(id: string): Promise<User> {
-    const user = await this.userModel.findById(id);
+  async findAll(queryUserDto: QueryUserDto): Promise<UserPaginatedResponseDto> {
+    const { search, page = 1, limit = 20 } = queryUserDto;
+    const pipelines: PipelineStage[] = [];
+    if (search) {
+      pipelines.push({
+        $match: {
+          $or: [
+            {
+              name: {
+                $regex: search,
+                contains: 'i',
+              },
+            },
+            {
+              email: {
+                $regex: search,
+                contains: 'i',
+              },
+            },
+          ],
+        },
+      });
+    }
+    pipelines.push({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [
+          {
+            $sort: {
+              createdAt: -1,
+            },
+          },
+          {
+            $skip: (page - 1) * limit,
+          },
+          {
+            $limit: limit,
+          },
+        ],
+      },
+    });
+    const result = await this.userModel.aggregate(pipelines);
+    const total = result?.[0]?.metadata?.[0]?.total || 0;
+    return {
+      page,
+      total,
+      totalPages: Math.ceil(total / limit),
+      data: result?.[0]?.data,
+    };
+  }
+
+  async findById(id: string, select?: string): Promise<User> {
+    const query = this.userModel.findById(id);
+    if (select) {
+      query.select(select);
+    }
+    const user = await query.lean();
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return user;
   }
 
-  async findByEmail(email: string) {
-    const user = await this.userModel.findOne({ email });
+  async findByEmail(email: string, select?: string) {
+    const query = this.userModel.findOne({ email });
+    if (select) {
+      query.select(select);
+    }
+
+    const user = await query.lean();
     if (!user) {
-      throw new NotFoundException('User not found!');
+      throw new BadRequestException('Invalid credentials!');
     }
     return user;
   }
@@ -46,7 +112,33 @@ export class UserService {
     return restUser;
   }
 
-  async updateRefreshId(userId: string, refreshId: string): Promise<void> {
+  async update(
+    userId: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
+    const { name, photo } = updateUserDto;
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        { _id: userId },
+        {
+          name,
+          photo,
+        },
+        {
+          returnDocument: 'after',
+        },
+      )
+      .lean();
+    const { password, refreshId, ...restUser } = user?.toObject();
+    return {
+      user: restUser,
+    };
+  }
+
+  async updateRefreshId(
+    userId: string,
+    refreshId: string | null,
+  ): Promise<void> {
     await this.userModel.updateOne(
       {
         _id: userId,

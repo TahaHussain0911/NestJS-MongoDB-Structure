@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import slugify from 'slugify';
 
 export function DTOTrim({ value }) {
@@ -22,4 +23,29 @@ export function createSlug(value: string) {
     lower: true,
     strict: true,
   });
+}
+
+export function convertStringToMongoIds(value: string[]): Types.ObjectId[];
+export function convertStringToMongoIds(
+  value: string,
+): Types.ObjectId | undefined;
+
+export function convertStringToMongoIds(
+  value: string[] | string,
+): Types.ObjectId | Types.ObjectId[] | undefined {
+  if (Array.isArray(value)) {
+    return value.flatMap((id) => {
+      try {
+        return [new Types.ObjectId(id)];
+      } catch (error) {
+        return [];
+      }
+    });
+  } else {
+    try {
+      return new Types.ObjectId(value);
+    } catch (error) {
+      return undefined;
+    }
+  }
 }
