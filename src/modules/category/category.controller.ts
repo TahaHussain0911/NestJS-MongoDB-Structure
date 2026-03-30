@@ -38,6 +38,7 @@ export class CategoryController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @ApiBearerAuth(SwaggerJwtAuth)
   @ApiOperation({
     summary: 'Create a category',
   })

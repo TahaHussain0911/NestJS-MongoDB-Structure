@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -11,15 +12,18 @@ import {
   CategoryResponseDto,
 } from './dto/category-response.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { createSlug } from 'src/utils/helper';
+import { convertStringToMongoIds, createSlug } from 'src/utils/helper';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { QueryCategoryDto } from './dto/query-category.dto';
+import { Product, ProductDocument } from '../product/product.schema';
 
 @Injectable()
 export class CategoryService {
   constructor(
     @InjectModel(Category.name)
     private readonly categoryModel: Model<CategoryDocument>,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
   ) {}
 
   async create(
@@ -119,6 +123,14 @@ export class CategoryService {
   }
 
   async delete(id: string): Promise<CategoryResponseDto> {
+    const categoryInProd = await this.productModel.exists({
+      category: convertStringToMongoIds(id),
+    });
+    if (categoryInProd) {
+      throw new BadRequestException(
+        'Category exists inside a product. You can deactivate it',
+      );
+    }
     const category = await this.categoryModel.findByIdAndDelete(id);
     if (!category) {
       throw new NotFoundException('Category not found');
