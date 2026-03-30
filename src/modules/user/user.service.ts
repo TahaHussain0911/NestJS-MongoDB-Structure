@@ -32,13 +32,13 @@ export class UserService {
             {
               name: {
                 $regex: search,
-                contains: 'i',
+                $options: 'i',
               },
             },
             {
               email: {
                 $regex: search,
-                contains: 'i',
+                $options: 'i',
               },
             },
           ],

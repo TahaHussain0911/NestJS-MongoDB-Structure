@@ -2,30 +2,30 @@ import {
   Body,
   Controller,
   Get,
-  Param,
   Patch,
   Query,
-  UseGuards,
+  UseGuards
 } from '@nestjs/common';
-import { UserService } from './user.service';
 import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { GetUser } from 'src/common/decorators/get-user.decorator';
+import { ObjectIdParam } from 'src/common/decorators/object-id.decorator';
+import { Roles } from 'src/common/decorators/roles.decorator';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { SwaggerJwtAuth } from 'src/utils/swagger.constants';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { Role } from './user.schema';
+import { QueryUserDto } from './dto/query-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import {
   UserPaginatedResponseDto,
   UserResponseDto,
 } from './dto/user-response.dto';
-import { QueryUserDto } from './dto/query-user.dto';
-import { GetUser } from 'src/common/decorators/get-user.decorator';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { Role } from './user.schema';
+import { UserService } from './user.service';
 
 @ApiTags('Users')
 @ApiBearerAuth(SwaggerJwtAuth)
@@ -56,7 +56,7 @@ export class UserController {
   @ApiOkResponse({
     type: UserResponseDto,
   })
-  async findOneAdmin(@Param('id') userId: string): Promise<UserResponseDto> {
+  async findOneAdmin(@ObjectIdParam('id') userId: string): Promise<UserResponseDto> {
     return { user: await this.userService.findById(userId) };
   }
 

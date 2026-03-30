@@ -7,6 +7,7 @@ import { TypedConfigService } from './config/typed-config.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { CategoryModule } from './modules/category/category.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UploadModule } from './modules/upload/upload.module';
     AuthModule,
     UserModule,
     UploadModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [AppService, TypedConfigService],
