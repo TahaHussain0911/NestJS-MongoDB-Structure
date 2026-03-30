@@ -26,7 +26,7 @@ export class CategoryService {
     createCategoryDto: CreateCategoryDto,
   ): Promise<CategoryResponseDto> {
     const { title, ...rest } = createCategoryDto;
-    const slug = await this.getCategorySlug(title);
+    const slug = await this.getCategoryBySlug(title);
     const category = await this.categoryModel.create({
       title,
       slug,
@@ -46,7 +46,7 @@ export class CategoryService {
     const { title, ...rest } = updateCategoryDto;
     if (title && category.title !== title) {
       category.title = title;
-      category.slug = await this.getCategorySlug(title);
+      category.slug = await this.getCategoryBySlug(title);
     }
     Object.assign(category, rest);
     await category.save();
@@ -126,7 +126,7 @@ export class CategoryService {
     return { category };
   }
 
-  async getCategorySlug(title: string): Promise<string> {
+  async getCategoryBySlug(title: string): Promise<string> {
     const slug = createSlug(title);
     const slugTaken = await this.categoryModel.exists({ slug });
     if (slugTaken) {

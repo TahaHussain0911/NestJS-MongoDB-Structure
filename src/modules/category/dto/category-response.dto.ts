@@ -5,7 +5,7 @@ export class CategoryResponseDto {
 }
 
 export class CategoryPaginatedResponseDto {
-  data: Category[];
+  data: CategoryResponseDto['category'][];
   page: number;
   total: number;
   totalPages: number;
