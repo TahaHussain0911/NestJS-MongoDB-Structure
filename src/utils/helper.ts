@@ -52,3 +52,15 @@ export function convertStringToMongoIds(
 export function getFileSizeInMbs(size: number) {
   return Math.round(size / 1024 / 1024);
 }
+
+export function generateOrderNumber(): string {
+  const prefix = 'ORD';
+  const letters = Array.from({ length: 3 }, () =>
+    String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+  ).join('');
+  const today = new Date();
+  const date = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  return `${prefix}-${letters}-${date}-${randomCode}`;
+}

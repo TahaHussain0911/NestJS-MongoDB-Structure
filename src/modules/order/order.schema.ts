@@ -47,6 +47,11 @@ export class Order {
   _id: Types.ObjectId;
 
   @Prop({
+    required: true,
+  })
+  orderNumber: string;
+
+  @Prop({
     type: [OrderItem],
     required: true,
   })
@@ -74,6 +79,11 @@ export class Order {
     required: true,
   })
   user: Types.ObjectId;
+
+  @Prop({
+    type: Types.ObjectId,
+  })
+  cart: Types.ObjectId;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

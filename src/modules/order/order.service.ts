@@ -1,16 +1,26 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Order, OrderDocument } from './order.schema';
-import { Model } from 'mongoose';
+import { Order, OrderDocument, OrderStatus } from './order.schema';
+import mongoose, { Model, PipelineStage } from 'mongoose';
 import { Product, ProductDocument } from '../product/product.schema';
 import { CreateOrderDto } from './dto/create-order.dto';
 import {
   OrderItemResponseDto,
+  OrderPaginatedResponseDto,
   OrderResponseDto,
 } from './dto/order-response.dto';
 import { Cart, CartDocument } from '../cart/cart.schema';
-import { convertStringToMongoIds } from 'src/utils/helper';
-import { CartProductPopulate } from 'src/common/populates/product.populate';
+import { convertStringToMongoIds, generateOrderNumber } from 'src/utils/helper';
+import {
+  CartProductPopulate,
+  OrderProductPopulate,
+} from 'src/common/populates/product.populate';
+import { QueryOrderDto } from './dto/query-order.dto';
+import { Role, User } from '../user/user.schema';
 
 @Injectable()
 export class OrderService {
@@ -59,16 +69,20 @@ export class OrderService {
     const totalAmount = orderItems.reduce((acc, item) => {
       return acc + item.price * item.quantity;
     }, 0);
-    const order = await this.orderModel.create({
+    const order = new this.orderModel({
+      cart: cart._id,
       user: convertStringToMongoIds(userId),
       shippingAddress,
       totalAmount,
+      orderNumber: generateOrderNumber(),
       items: orderItems.map((item) => ({
         price: item.price,
         quantity: item.quantity,
         product: item.product._id,
       })),
     });
+    await order.save();
+    await order.populate(OrderProductPopulate);
     for (const item of orderItems) {
       await this.productModel.updateOne(
         {
@@ -81,11 +95,177 @@ export class OrderService {
         },
       );
     }
-    return {
-      order: {
-        ...order,
-        items: orderItems,
+    return this.formatOrderResponse(order);
+  }
+
+  async findAll(
+    queryOrderDto: QueryOrderDto,
+    user: User,
+  ): Promise<OrderPaginatedResponseDto> {
+    const { search, status, page = 1, limit = 20 } = queryOrderDto;
+    const matchStage: mongoose.QueryFilter<OrderDocument> = {
+      ...(user.role === Role.USER && {
+        user: user._id,
+      }),
+    };
+    if (search) {
+      matchStage.orderNumber = {
+        $regex: search,
+        $options: 'i',
+      };
+    }
+    if (status) {
+      matchStage.status = status;
+    }
+    const pipelines: PipelineStage[] = [];
+    pipelines.push(
+      { $match: matchStage },
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          data: [
+            {
+              $sort: {
+                createdAt: -1,
+              },
+            },
+            {
+              $skip: (page - 1) * limit,
+            },
+            {
+              $limit: limit,
+            },
+            {
+              $lookup: {
+                localField: 'items.product',
+                foreignField: '_id',
+                as: 'productData',
+                from: 'products',
+                pipeline: [
+                  {
+                    $project: {
+                      title: 1,
+                      description: 1,
+                      imageUrl: 1,
+                      sku: 1,
+                      slug: 1,
+                      stock: 1,
+                      category: 1,
+                    },
+                  },
+                  {
+                    $lookup: {
+                      localField: 'category',
+                      foreignField: '_id',
+                      from: 'categories',
+                      as: 'category',
+                      pipeline: [
+                        {
+                          $project: {
+                            title: 1,
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $addFields: {
+                items: {
+                  $map: {
+                    input: '$items',
+                    as: 'item', //as gives name to each elem like .map((item)=>item)
+                    in: {
+                      //in tells what the output will look like
+                      quantity: '$$item.quantity',
+                      price: '$$item.price',
+                      product: {
+                        $first: {
+                          //$first returns first element
+                          $filter: {
+                            input: '$productData',
+                            as: 'prod',
+                            cond: { $eq: ['$$prod._id', '$$item.product'] },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            {
+              $project: {
+                productData: 0,
+              },
+            },
+          ],
+        },
       },
+    );
+    const [result] = await this.orderModel.aggregate(pipelines);
+    const total = result?.metadata?.[0]?.total || 0;
+    return {
+      page,
+      total,
+      totalPages: Math.ceil(total / limit),
+      data: result?.data || [],
+    };
+  }
+
+  async findOne(orderId: string, user: User): Promise<OrderResponseDto> {
+    const order = await this.orderModel
+      .findOne({
+        _id: orderId,
+        ...(user.role === Role.USER && {
+          user: user._id,
+        }),
+      })
+      .populate(OrderProductPopulate);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    return this.formatOrderResponse(order);
+  }
+
+  async cancel(orderId: string, user: User): Promise<OrderResponseDto> {
+    const order = await this.orderModel
+      .findOne({
+        _id: orderId,
+        ...(user.role === Role.USER && {
+          user: user._id,
+        }),
+      })
+      .populate(OrderProductPopulate)
+      .lean();
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (order.status !== OrderStatus.PENDING) {
+      throw new BadRequestException(`Only pending order can be cancelled`);
+    }
+    for (const item of order.items) {
+      await this.productModel.updateOne(
+        {
+          _id: item.product._id,
+        },
+        {
+          $inc: {
+            stock: item.quantity,
+          },
+        },
+      );
+    }
+    order.status = OrderStatus.CANCELLED;
+    await order.save();
+    return this.formatOrderResponse(order);
+  }
+
+  private formatOrderResponse(order: OrderDocument): OrderResponseDto {
+    return {
+      order: order.toObject(),
     };
   }
 }
