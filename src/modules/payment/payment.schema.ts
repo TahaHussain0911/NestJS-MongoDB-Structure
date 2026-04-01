@@ -60,6 +60,7 @@ export class Payment {
   @Prop({
     type: Types.ObjectId,
     ref: Order.name,
+    unique: true,
   })
   order: Types.ObjectId;
 

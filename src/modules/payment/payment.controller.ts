@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Headers,
+  Param,
   Post,
   type RawBodyRequest,
   Req,
@@ -17,6 +18,7 @@ import {
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { GetUser } from 'src/common/decorators/get-user.decorator';
 import {
+  PaymentApiMessageResponse,
   PaymentApiResponseDto,
   PaymentIntentResponseDto,
 } from './dto/payment-response.dto';
@@ -26,13 +28,13 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { SwaggerJwtAuth } from 'src/utils/swagger.constants';
 
 @ApiTags('Payment')
-@ApiBearerAuth(SwaggerJwtAuth)
-@UseGuards(JwtAuthGuard)
 @Controller('payment')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   @Post('create-intent')
+  @ApiBearerAuth(SwaggerJwtAuth)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Create a payment intent',
   })
@@ -62,5 +64,21 @@ export class PaymentController {
     return {
       received: true,
     };
+  }
+
+  @Post('refund/:orderId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth(SwaggerJwtAuth)
+  @ApiOperation({
+    summary: 'Refund order payment',
+  })
+  @ApiOkResponse({
+    type: PaymentApiMessageResponse,
+  })
+  async refundPayment(
+    @GetUser('_id') userId: string,
+    @Param('orderId') orderId: string,
+  ): Promise<PaymentApiMessageResponse> {
+    return this.paymentService.refundPayment(userId, orderId);
   }
 }

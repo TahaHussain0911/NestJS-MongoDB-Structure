@@ -1,12 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class PaymentApiResponseDto<T> {
+export class PaymentApiMessageResponse {
   @ApiProperty()
   message: string;
 
   @ApiProperty()
   success: boolean;
+}
 
+export class PaymentApiResponseDto<T> extends PaymentApiMessageResponse {
   @ApiProperty()
   data: T;
 }

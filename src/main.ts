@@ -1,18 +1,21 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 import {
   SwaggerCustomCss,
   SwaggerDescription,
-  SwaggerDevelopmentServer,
   SwaggerJwtAuth,
+  SwaggerLocalServer,
+  SwaggerNgrokServer,
   SwaggerRefreshTokenAuth,
   SwaggerTitle,
 } from './utils/swagger.constants';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({
@@ -47,7 +50,8 @@ async function bootstrap() {
       },
       SwaggerRefreshTokenAuth,
     )
-    .addServer(SwaggerDevelopmentServer, 'Development Server')
+    .addServer(SwaggerLocalServer, 'Local Server')
+    .addServer(SwaggerNgrokServer, 'Ngrok Server')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -4,26 +4,27 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model } from 'mongoose';
+import { OrderProductPopulate } from 'src/common/populates/product.populate';
+import { TypedConfigService } from 'src/config/typed-config.service';
+import { convertStringToMongoIds } from 'src/utils/helper';
+import Stripe from 'stripe';
+import { Cart, CartDocument } from '../cart/cart.schema';
+import { Order, OrderDocument, OrderStatus } from '../order/order.schema';
+import { Product, ProductDocument } from '../product/product.schema';
+import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
+import {
+  PaymentApiMessageResponse,
+  PaymentApiResponseDto,
+  PaymentIntentResponseDto,
+} from './dto/payment-response.dto';
 import {
   CURRENCY_VALUES,
   Payment,
   PaymentDocument,
   PaymentStatus,
 } from './payment.schema';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Order, OrderDocument, OrderStatus } from '../order/order.schema';
-import { TypedConfigService } from 'src/config/typed-config.service';
-import Stripe from 'stripe';
-import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
-import {
-  PaymentApiResponseDto,
-  PaymentIntentResponseDto,
-} from './dto/payment-response.dto';
-import { OrderProductPopulate } from 'src/common/populates/product.populate';
-import { ProductDocument } from '../product/product.schema';
-import { convertStringToMongoIds } from 'src/utils/helper';
-import { Cart, CartDocument } from '../cart/cart.schema';
 
 @Injectable()
 export class PaymentService {
@@ -36,6 +37,8 @@ export class PaymentService {
     private readonly orderModel: Model<OrderDocument>,
     @InjectModel(Cart.name)
     private readonly cartModel: Model<CartDocument>,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
     private config: TypedConfigService,
     @InjectConnection() private readonly connection: Connection,
   ) {
@@ -140,6 +143,7 @@ export class PaymentService {
       );
 
       this.logger.log(`Webhook received ${event.type}`);
+      this.logger.log(`Webhook payload ${event.data.object}`);
 
       switch (event.type) {
         case 'checkout.session.completed':
@@ -202,12 +206,14 @@ export class PaymentService {
             status: PaymentStatus.COMPLETED,
             transactionId,
           },
+          { session: transaction },
         );
         const updatedOrder = await this.orderModel.findByIdAndUpdate(
           payment.order,
           {
             status: OrderStatus.COMPLETED,
           },
+          { session: transaction },
         );
         await this.cartModel.updateOne(
           {
@@ -216,6 +222,7 @@ export class PaymentService {
           {
             checkedOut: true,
           },
+          { session: transaction },
         );
         await transaction.commitTransaction();
       } catch (error) {
@@ -277,13 +284,8 @@ export class PaymentService {
 
   async handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
     const transactionId = charge.payment_intent as string;
-    const userId = charge.metadata?.userId!;
-    const orderId = charge.metadata?.orderId!;
-
     const payment = await this.paymentModel.findOne({
       transactionId,
-      user: convertStringToMongoIds(userId),
-      order: convertStringToMongoIds(orderId),
     });
     if (!payment) {
       this.logger.error(
@@ -291,8 +293,8 @@ export class PaymentService {
       );
       return;
     }
-    const transaction = await this.connection.startSession();
-    transaction.startTransaction();
+    const session = await this.connection.startSession();
+    session.startTransaction();
     try {
       await this.paymentModel.updateOne(
         {
@@ -301,24 +303,65 @@ export class PaymentService {
         {
           status: PaymentStatus.REFUNDED,
         },
+        { session },
       );
-      await this.orderModel.updateOne(
-        {
-          _id: payment.order,
-        },
+      const updatedOrder = await this.orderModel.findByIdAndUpdate(
+        payment.order,
         {
           status: OrderStatus.CANCELLED,
         },
+        { session },
       );
-      await transaction.commitTransaction();
+      if (!updatedOrder) throw new Error('Order not found');
+      for (const item of updatedOrder.items) {
+        await this.productModel.updateOne(
+          {
+            _id: item.product,
+          },
+          {
+            $inc: {
+              stock: item.quantity,
+            },
+          },
+          { session },
+        );
+      }
+      await session.commitTransaction();
       this.logger.log(
         `Payment refunded for user ${payment.user} with payment ${payment._id} and order ${payment.order}`,
       );
     } catch (error) {
-      await transaction.abortTransaction();
+      await session.abortTransaction();
       this.logger.error(`Error: ${error.message}`);
     } finally {
-      transaction.endSession();
+      session.endSession();
     }
+  }
+
+  async refundPayment(
+    userId: string,
+    orderId: string,
+  ): Promise<PaymentApiMessageResponse> {
+    const payment = await this.paymentModel.findOne({
+      order: convertStringToMongoIds(orderId),
+      user: convertStringToMongoIds(userId),
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment not found for this order');
+    }
+    if (payment.status !== PaymentStatus.COMPLETED) {
+      throw new BadRequestException(`Only completed payments can be completed`);
+    }
+    await this.stripe.refunds.create({
+      payment_intent: payment.transactionId,
+      metadata: {
+        userId: userId.toString(),
+        orderId,
+      },
+    });
+    return {
+      success: true,
+      message: 'Payment refunded successfully',
+    };
   }
 }
