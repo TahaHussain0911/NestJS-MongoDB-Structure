@@ -11,6 +11,10 @@ export const envSchema = z.object({
   AWS_S3_BUCKET_NAME: z.string(),
   AWS_S3_ACCESS_KEY_ID: z.string(),
   AWS_S3_SECRET_KEY: z.string(),
+  STRIPE_SECRET_KEY: z.string(),
+  STRIPE_WEBHOOK_SECRET: z.string(),
+  FRONTEND_SUCCESS_URL: z.string(),
+  FRONTEND_CANCEL_URL: z.string(),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

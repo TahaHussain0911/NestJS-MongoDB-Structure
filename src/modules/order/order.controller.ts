@@ -51,8 +51,6 @@ export class OrderController {
   }
 
   @Get('all')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth(SwaggerJwtAuth)
   @ApiOperation({
     summary: 'Get all orders',
   })
@@ -67,8 +65,6 @@ export class OrderController {
   }
 
   @Get(':orderId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth(SwaggerJwtAuth)
   @ApiOperation({
     summary: 'Get single order details',
   })
@@ -83,8 +79,6 @@ export class OrderController {
   }
 
   @Patch('cancel/:orderId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth(SwaggerJwtAuth)
   @ApiOperation({
     summary: 'Get single order details',
   })
