@@ -8,6 +8,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
+import { StrictThrottle } from 'src/common/decorators/throttler.decorator';
 import { PaymentService } from './payment.service';
 import {
   ApiBearerAuth,
@@ -28,6 +30,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { SwaggerJwtAuth } from 'src/utils/swagger.constants';
 
 @ApiTags('Payment')
+@StrictThrottle()
 @Controller('payment')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
@@ -51,6 +54,7 @@ export class PaymentController {
     );
   }
 
+  @SkipThrottle()
   @Post('webhook')
   async handleWebhook(
     @Headers('stripe-signature') signature: string,

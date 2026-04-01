@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { RefreshTokenGuard } from 'src/common/guards/refresh-token.guard';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -66,6 +67,34 @@ export class ProductController {
     @Body() updateProductDto: UpdateProductDto,
   ): Promise<ProductResponseDto> {
     return this.productService.update(id, updateProductDto);
+  }
+
+  @Patch('stock/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth(SwaggerJwtAuth)
+  @ApiOperation({
+    summary: 'Increment/decrement a product stock',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        stock: {
+          type: 'number',
+        },
+      },
+      required: ['stock'],
+    },
+  })
+  @ApiCreatedResponse({
+    type: ProductResponseDto,
+  })
+  async updateStock(
+    @ObjectIdParam('id') id: string,
+    @Body('stock') stock: number,
+  ): Promise<ProductResponseDto> {
+    return this.productService.updateStock(id, stock);
   }
 
   @Get('all')

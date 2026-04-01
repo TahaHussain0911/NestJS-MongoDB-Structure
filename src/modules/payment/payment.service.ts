@@ -143,7 +143,6 @@ export class PaymentService {
       );
 
       this.logger.log(`Webhook received ${event.type}`);
-      this.logger.log(`Webhook payload ${event.data.object}`);
 
       switch (event.type) {
         case 'checkout.session.completed':

@@ -1,11 +1,18 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   Post,
+  Query,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import {
+  RelaxedThrottle,
+  StrictThrottle,
+} from 'src/common/decorators/throttler.decorator';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -28,6 +35,7 @@ import { UploadService } from './upload.service';
 @ApiTags('Uploads')
 @ApiBearerAuth(SwaggerJwtAuth)
 @UseGuards(JwtAuthGuard)
+@StrictThrottle()
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
@@ -76,5 +84,18 @@ export class UploadController {
   ): Promise<UploadResponseDto[]> {
     const { keys } = body;
     return this.uploadService.uploadFiles(keys || [], files, userId);
+  }
+
+  @Get('read')
+  @RelaxedThrottle()
+  @ApiOperation({ summary: 'Get signed URL for reading a file' })
+  async readFile(@Query('key') key: string) {
+    return await this.uploadService.readFile(key);
+  }
+
+  @Delete()
+  @ApiOperation({ summary: 'Delete file from storage' })
+  async deleteFile(@Query('key') key: string) {
+    return await this.uploadService.deleteFile(key);
   }
 }

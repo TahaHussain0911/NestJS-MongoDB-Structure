@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  Query,
-  UseGuards
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -56,7 +49,9 @@ export class UserController {
   @ApiOkResponse({
     type: UserResponseDto,
   })
-  async findOneAdmin(@ObjectIdParam('id') userId: string): Promise<UserResponseDto> {
+  async findOneAdmin(
+    @ObjectIdParam('id') userId: string,
+  ): Promise<UserResponseDto> {
     return { user: await this.userService.findById(userId) };
   }
 

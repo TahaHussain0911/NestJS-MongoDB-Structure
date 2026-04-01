@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ModerateThrottle } from 'src/common/decorators/throttler.decorator';
 import { OrderService } from './order.service';
 import {
   ApiBearerAuth,
@@ -32,6 +33,7 @@ import { QueryOrderDto } from './dto/query-order.dto';
 @ApiTags('Orders')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth(SwaggerJwtAuth)
+@ModerateThrottle()
 @Controller('orders')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}

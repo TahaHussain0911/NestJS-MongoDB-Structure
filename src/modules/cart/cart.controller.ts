@@ -8,6 +8,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { ModerateThrottle } from 'src/common/decorators/throttler.decorator';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -24,6 +25,7 @@ import { UpsertCartItemDto } from './dto/upsert-cart-item.dto';
 @ApiTags('Cart')
 @ApiBearerAuth(SwaggerJwtAuth)
 @UseGuards(JwtAuthGuard)
+@ModerateThrottle()
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}

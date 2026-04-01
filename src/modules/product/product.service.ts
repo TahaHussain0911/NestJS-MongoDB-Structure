@@ -71,6 +71,22 @@ export class ProductService {
     };
   }
 
+  async updateStock(id: string, stock: number): Promise<ProductResponseDto> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    const newStock = product.stock + stock;
+    if (newStock < 0) {
+      throw new BadRequestException(`Insufficient stock`);
+    }
+    product.stock = newStock;
+    await product.save();
+    return {
+      product,
+    };
+  }
+
   async findAll(
     queryProductDto: QueryProductDto,
   ): Promise<ProductPaginatedResponseDto> {

@@ -18,8 +18,10 @@ import { GetUser } from 'src/common/decorators/get-user.decorator';
 import { User } from '../user/user.schema';
 import { SwaggerRefreshTokenAuth } from 'src/utils/swagger.constants';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { ModerateThrottle } from 'src/common/decorators/throttler.decorator';
 
 @ApiTags('Auth')
+@ModerateThrottle()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
