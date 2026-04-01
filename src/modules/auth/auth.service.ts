@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { TokenPayload } from './types/token-payload';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../user/user.schema';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly config: TypedConfigService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
@@ -31,6 +33,9 @@ export class AuthService {
     const userId = String(user._id);
     const tokens = await this.generateTokens(userId, user.email);
     await this.userService.updateRefreshId(userId, tokens.refreshId!);
+    await this.mailService.welcomeEmail({
+      email: user.email,
+    });
     return {
       user,
       accessToken: tokens.accessToken,

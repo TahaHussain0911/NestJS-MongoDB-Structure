@@ -15,6 +15,10 @@ export const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string(),
   FRONTEND_SUCCESS_URL: z.string(),
   FRONTEND_CANCEL_URL: z.string(),
+  SMTP_EMAIL: z.string(),
+  SMTP_HOST: z.string(),
+  SMTP_PASSWORD: z.string(),
+  BASE_URL: z.string(),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

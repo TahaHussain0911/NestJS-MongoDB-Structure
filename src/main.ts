@@ -11,11 +11,13 @@ import {
   SwaggerRefreshTokenAuth,
   SwaggerTitle,
 } from './utils/swagger.constants';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
+  app.setViewEngine('ejs');
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({

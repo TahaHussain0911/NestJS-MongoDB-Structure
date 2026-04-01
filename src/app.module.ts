@@ -14,6 +14,7 @@ import { OrderModule } from './modules/order/order.module';
 import { CartModule } from './modules/cart/cart.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     OrderModule,
     CartModule,
     PaymentModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [
