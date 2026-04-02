@@ -55,4 +55,26 @@ export class MailService {
       context: options,
     });
   }
+
+  async paymentSuccessEmail(options: {
+    email: string;
+    name: string;
+    orderId: string;
+    transactionId: string;
+    totalAmount: number;
+    currency: string;
+  }) {
+    await this.send({
+      email: options.email,
+      subject: `Payment Successful - Order #${options.orderId.substring(0, 8)}`,
+      template: 'payment-success',
+      context: {
+        name: options.name,
+        orderId: options.orderId,
+        transactionId: options.transactionId,
+        totalAmount: options.totalAmount.toString(),
+        currency: options.currency,
+      },
+    });
+  }
 }

@@ -13,6 +13,8 @@ import Stripe from 'stripe';
 import { Cart, CartDocument } from '../cart/cart.schema';
 import { Order, OrderDocument, OrderStatus } from '../order/order.schema';
 import { Product, ProductDocument } from '../product/product.schema';
+import { UserDocument } from '../user/user.schema';
+import { MailService } from '../../mail/mail.service';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import {
   PaymentApiMessageResponse,
@@ -40,6 +42,7 @@ export class PaymentService {
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
     private config: TypedConfigService,
+    private readonly mailService: MailService,
     @InjectConnection() private readonly connection: Connection,
   ) {
     this.stripe = new Stripe(config.get('STRIPE_SECRET_KEY'), {
@@ -182,7 +185,7 @@ export class PaymentService {
     try {
       const payment = await this.paymentModel.findOne({
         sessionId: session.id,
-      });
+      }).populate('user');
       if (!payment) {
         this.logger.error(`Payment not found for session: ${session.id}`);
         return;
@@ -231,9 +234,28 @@ export class PaymentService {
       } finally {
         transaction.endSession();
       }
+
       this.logger.log(
-        `Payment success handled for user: ${payment.user} having paymentId: ${payment._id} and orderId ${payment.order}`,
+        `Payment success handled for user: ${(payment.user as unknown as UserDocument)._id} having paymentId: ${payment._id} and orderId ${payment.order}`,
       );
+
+      // Send payment success email
+      const user = payment.user as unknown as UserDocument;
+      try {
+        await this.mailService.paymentSuccessEmail({
+          email: user.email,
+          name: user.name,
+          orderId: payment.order.toString(),
+          transactionId: transactionId as string,
+          totalAmount: payment.totalAmount,
+          currency: payment.currency,
+        });
+        this.logger.log(`Payment success email sent to ${user.email}`);
+      } catch (emailError) {
+        this.logger.error(
+          `Failed to send payment success email to ${user.email}: ${emailError.message}`,
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Error processing payment: ${error.message}`,

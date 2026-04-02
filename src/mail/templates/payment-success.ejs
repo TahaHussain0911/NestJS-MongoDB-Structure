@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Payment Successful</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f6f8;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        margin-top: 40px;
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 30px;
+        border-bottom: 2px solid #eef2f5;
+        margin-bottom: 30px;
+      }
+      .success-icon {
+        color: #4caf50;
+        font-size: 48px;
+        margin-bottom: 15px;
+      }
+      .header h1 {
+        color: #333333;
+        font-size: 24px;
+        margin: 0;
+      }
+      .content {
+        color: #555555;
+        line-height: 1.6;
+        font-size: 16px;
+      }
+      .content p {
+        margin: 10px 0 20px 0;
+      }
+      .order-details {
+        background-color: #f9fbfc;
+        border: 1px solid #eef2f5;
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 30px;
+      }
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eef2f5;
+      }
+      .detail-row:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      .detail-label {
+        font-weight: bold;
+        color: #333333;
+      }
+      .detail-value {
+        color: #666666;
+      }
+      .amount-total {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+      .footer {
+        text-align: center;
+        color: #999999;
+        font-size: 14px;
+        margin-top: 40px;
+        border-top: 2px solid #eef2f5;
+        padding-top: 20px;
+      }
+      .btn {
+        display: inline-block;
+        background-color: #4caf50;
+        color: #ffffff;
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-weight: bold;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="success-icon">✓</div>
+        <h1>Payment Successful!</h1>
+      </div>
+      <div class="content">
+        <p>Hi <%= name %>,</p>
+        <p>
+          Great news! We have successfully received your payment. Thank you for
+          your purchase. Here are the details of your transaction:
+        </p>
+
+        <div class="order-details">
+          <div class="detail-row">
+            <span class="detail-label">Order ID:</span>
+            <span class="detail-value"><%= orderId %></span>
+          </div>
+          <!-- Adding Payment ID reference could also be helpful -->
+          <div class="detail-row">
+            <span class="detail-label">Transaction ID:</span>
+            <span class="detail-value"><%= transactionId %></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Total Amount Paid:</span>
+            <span class="detail-value amount-total"
+              ><%= currency.toUpperCase() %> <%= totalAmount.toFixed(2) %></span
+            >
+          </div>
+        </div>
+
+        <p>
+          Your order is now being processed. You will receive another email once
+          your items have been shipped.
+        </p>
+
+        <div style="text-align: center">
+          <a href="<%= baseUrl %>/orders/<%= orderId %>" class="btn"
+            >View Order Status</a
+          >
+        </div>
+
+        <p>
+          If you have any questions or need assistance, please do not hesitate
+          to contact our support team.
+        </p>
+      </div>
+      <div class="footer">
+        <p>
+          &copy; <%= new Date().getFullYear() %> Our Store. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
