@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import slugify from 'slugify';
+import otpGenerator from 'otp-generator';
 
 export function DTOTrim({ value }) {
   if (typeof value === 'string') {
@@ -63,4 +64,20 @@ export function generateOrderNumber(): string {
   const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
 
   return `${prefix}-${letters}-${date}-${randomCode}`;
+}
+
+export function getTimeDifference(timeInMs: number) {
+  const timeDiffInSecs = Math.ceil((timeInMs - Date.now()) / 1000);
+  return {
+    seconds: timeDiffInSecs % 60,
+    minutes: Math.floor(timeDiffInSecs / 60),
+  };
+}
+
+export function generateOtp() {
+  return otpGenerator.generate(6, {
+    lowerCaseAlphabets: false,
+    upperCaseAlphabets: false,
+    specialChars: false,
+  });
 }

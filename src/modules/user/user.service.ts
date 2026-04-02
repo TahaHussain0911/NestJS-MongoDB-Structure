@@ -148,4 +148,30 @@ export class UserService {
       },
     );
   }
+
+  async saveOtp(userId: string, otp: string, otpExpires: Date): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { otp, otpExpires, otpVerified: false },
+    );
+  }
+
+  async setOtpVerified(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { otpVerified: true },
+    );
+  }
+
+  async updatePasswordAuth(userId: string, hashedPassword: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      {
+        password: hashedPassword,
+        passwordChangedAt: new Date(),
+        $unset: { otp: 1, otpExpires: 1 },
+        otpVerified: false,
+      },
+    );
+  }
 }

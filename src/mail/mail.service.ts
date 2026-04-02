@@ -77,4 +77,15 @@ export class MailService {
       },
     });
   }
+
+  async sendPasswordResetOtpEmail(options: { email: string; otp: string }) {
+    await this.send({
+      email: options.email,
+      subject: 'Your Password Reset OTP',
+      template: 'password-reset',
+      context: {
+        otp: options.otp,
+      },
+    });
+  }
 }

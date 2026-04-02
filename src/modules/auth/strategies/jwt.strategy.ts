@@ -19,6 +19,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: TokenPayload) {
-    return await this.userService.findById(payload.sub);
+    const user = await this.userService.findById(
+      payload.sub,
+      '+passwordChangedAt',
+    );
+
+    if (user.passwordChangedAt && payload.iat) {
+      const passwordChangedInMs = new Date(user?.passwordChangedAt).getTime();
+      if (payload.iat < Math.floor(passwordChangedInMs / 1000)) {
+        throw new UnauthorizedException(
+          'Recently changed password. Please log in again.',
+        );
+      }
+    }
+
+    return user;
   }
 }

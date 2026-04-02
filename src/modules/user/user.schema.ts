@@ -49,6 +49,30 @@ export class User {
     select: false,
   })
   refreshId?: string;
+
+  @Prop({
+    default: null,
+    select: false,
+  })
+  otp?: string;
+
+  @Prop({
+    default: null,
+    select: false,
+  })
+  otpExpires?: Date;
+
+  @Prop({
+    default: false,
+    select: false,
+  })
+  otpVerified: boolean;
+
+  @Prop({
+    default: null,
+    select: false,
+  })
+  passwordChangedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

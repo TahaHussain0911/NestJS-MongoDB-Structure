@@ -19,6 +19,10 @@ import { User } from '../user/user.schema';
 import { SwaggerRefreshTokenAuth } from 'src/utils/swagger.constants';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ModerateThrottle } from 'src/common/decorators/throttler.decorator';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @ApiTags('Auth')
 @ModerateThrottle()
@@ -80,6 +84,95 @@ export class AuthController {
     await this.authService.logout(userId);
     return {
       message: 'User logged out!',
+    };
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request OTP for password reset',
+  })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: { message: { type: 'string' } },
+    },
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+    await this.authService.forgotPassword(dto);
+    return {
+      message: 'If the email exists, an OTP has been sent.',
+    };
+  }
+
+  @Post('verify-otp')
+  @ApiOperation({
+    summary: 'Verify OTP code for password reset',
+  })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: { message: { type: 'string' } },
+    },
+  })
+  async verifyOtp(@Body() dto: VerifyOtpDto): Promise<{ message: string }> {
+    await this.authService.verifyOtp(dto);
+    return {
+      message: 'OTP verified successfully.',
+    };
+  }
+
+  @Post('reset-password')
+  @ApiOperation({
+    summary: 'Reset password using verified OTP status',
+  })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: { message: { type: 'string' } },
+    },
+  })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
+    await this.authService.resetPassword(dto);
+    return {
+      message: 'Password reset successfully.',
+    };
+  }
+
+  @Post('resend-otp')
+  @ApiOperation({
+    summary: 'Resend OTP for password reset',
+  })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: { message: { type: 'string' } },
+    },
+  })
+  async resendOtp(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+    await this.authService.resendOtp(dto);
+    return {
+      message: 'New OTP has been sent.',
+    };
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Change password for an authenticated user',
+  })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: { message: { type: 'string' } },
+    },
+  })
+  async changePassword(
+    @GetUser('_id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    await this.authService.changePassword(userId, dto);
+    return {
+      message: 'Password changed successfully.',
     };
   }
 }
