@@ -3,7 +3,15 @@ import { User } from '../user.schema';
 
 export class UserResponseDto {
   @ApiProperty()
-  user: Omit<User, 'password' | 'refreshId'>;
+  user: Omit<
+    User,
+    | 'password'
+    | 'refreshId'
+    | 'otp'
+    | 'otpExpires'
+    | 'otpVerified'
+    | 'passwordChangedAt'
+  >;
 }
 
 export class UserPaginatedResponseDto {

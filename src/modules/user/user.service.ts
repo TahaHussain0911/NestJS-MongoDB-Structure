@@ -108,8 +108,7 @@ export class UserService {
       throw new ConflictException('User email already exists!');
     }
     const user = await this.userModel.create(createUserDto);
-    const { password, refreshId, ...restUser } = user.toObject();
-    return restUser;
+    return this.formatUser(user);
   }
 
   async update(
@@ -129,9 +128,8 @@ export class UserService {
         },
       )
       .lean();
-    const { password, refreshId, ...restUser } = user?.toObject();
     return {
-      user: restUser,
+      user: this.formatUser(user!),
     };
   }
 
@@ -157,13 +155,13 @@ export class UserService {
   }
 
   async setOtpVerified(userId: string): Promise<void> {
-    await this.userModel.updateOne(
-      { _id: userId },
-      { otpVerified: true },
-    );
+    await this.userModel.updateOne({ _id: userId }, { otpVerified: true });
   }
 
-  async updatePasswordAuth(userId: string, hashedPassword: string): Promise<void> {
+  async updatePasswordAuth(
+    userId: string,
+    hashedPassword: string,
+  ): Promise<void> {
     await this.userModel.updateOne(
       { _id: userId },
       {
@@ -173,5 +171,17 @@ export class UserService {
         otpVerified: false,
       },
     );
+  }
+  private formatUser(user: UserDocument): UserResponseDto['user'] {
+    const {
+      password,
+      refreshId,
+      otp,
+      otpExpires,
+      otpVerified,
+      passwordChangedAt,
+      ...restUser
+    } = user.toObject();
+    return restUser;
   }
 }

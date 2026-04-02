@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
@@ -31,6 +36,10 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+    await this.mailService.welcomeEmail({
+      email: registerDto.email,
+      name: registerDto.name,
+    });
     const hashedPassword = await bcrypt.hash(registerDto.password, SALT_ROUNDS);
     const user = await this.userService.create({
       ...registerDto,
@@ -39,9 +48,6 @@ export class AuthService {
     const userId = String(user._id);
     const tokens = await this.generateTokens(userId, user.email);
     await this.userService.updateRefreshId(userId, tokens.refreshId!);
-    await this.mailService.welcomeEmail({
-      email: user.email,
-    });
     return {
       user,
       accessToken: tokens.accessToken,
@@ -86,7 +92,7 @@ export class AuthService {
       forgotPasswordDto.email,
       '+otpExpires +otpVerified',
     );
-    await this.verifyAndSendOtp(user);
+    await this.validateAndSendOtp(user);
   }
 
   async resendOtp(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
@@ -99,15 +105,22 @@ export class AuthService {
         `First request for otp using /forgot-password route`,
       );
     }
-    await this.verifyAndSendOtp(user);
+    await this.validateAndSendOtp(user);
   }
 
   async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<void> {
     const user = await this.userService.findByEmail(
       verifyOtpDto.email,
-      '+otp +otpExpires',
+      '+otp +otpExpires +otpVerified',
     );
-
+    if (user.otpVerified) {
+      throw new HttpException(
+        {
+          message: 'Your otp is verified. You can change your password',
+        },
+        HttpStatus.OK,
+      );
+    }
     if (!user.otp || !user.otpExpires) {
       throw new BadRequestException('Invalid or expired OTP request');
     }
@@ -157,7 +170,15 @@ export class AuthService {
     await this.userService.updatePasswordAuth(userId, hashedPassword);
   }
 
-  private async verifyAndSendOtp(user: User) {
+  private async validateAndSendOtp(user: User) {
+    if (user.otpVerified) {
+      throw new HttpException(
+        {
+          message: 'Your otp is verified. You can change your password',
+        },
+        HttpStatus.OK,
+      );
+    }
     if (user.otpExpires && !user.otpVerified && new Date() < user.otpExpires) {
       const timeDiff = getTimeDifference(new Date(user.otpExpires).getTime());
       throw new BadRequestException(
