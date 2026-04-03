@@ -15,6 +15,8 @@ import { CartModule } from './modules/cart/cart.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { MailModule } from './mail/mail.module';
+import { LikeModule } from './modules/like/like.module';
+import { CommentModule } from './modules/comment/comment.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { MailModule } from './mail/mail.module';
     CartModule,
     PaymentModule,
     MailModule,
+    LikeModule,
+    CommentModule,
   ],
   controllers: [AppController],
   providers: [

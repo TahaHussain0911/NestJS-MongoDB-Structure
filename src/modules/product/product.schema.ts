@@ -60,6 +60,16 @@ export class Product {
     default: true,
   })
   isActive: boolean;
+
+  @Prop({
+    default: 0,
+  })
+  likesCount: number;
+
+  @Prop({
+    default: 0,
+  })
+  commentsCount: number;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
