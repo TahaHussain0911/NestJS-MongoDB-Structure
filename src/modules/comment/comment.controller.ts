@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CommentService } from './comment.service';
@@ -18,6 +21,8 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { SwaggerJwtAuth } from 'src/utils/swagger.constants';
 import { UpdateCommentDto } from './dto/update-comment.dto';
+import { ObjectIdParam } from 'src/common/decorators/object-id.decorator';
+import { QueryCommentDto } from './dto/query-comment.dto';
 
 @Controller('comment')
 export class CommentController {
@@ -46,9 +51,35 @@ export class CommentController {
   })
   async update(
     @GetUser('_id') userId: string,
-    @Param('commentId') commentId: string,
+    @ObjectIdParam('commentId') commentId: string,
     @Body() updatecommentDto: UpdateCommentDto,
   ): Promise<CommentResponseDto> {
     return this.commentService.update(userId, commentId, updatecommentDto);
+  }
+
+  @Delete(':commentId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth(SwaggerJwtAuth)
+  @ApiOperation({ summary: 'Update a comment' })
+  @ApiCreatedResponse({
+    type: CommentResponseDto,
+  })
+  async delete(
+    @GetUser('_id') userId: string,
+    @ObjectIdParam('commentId') commentId: string,
+  ): Promise<CommentResponseDto> {
+    return this.commentService.delete(userId, commentId);
+  }
+
+  @Get(':productId')
+  @ApiOperation({ summary: 'Get all product comments' })
+  async getAllProductComments(
+    @ObjectIdParam('productId') productId: string,
+    @Query() queryCommentDto: QueryCommentDto,
+  ) {
+    return this.commentService.getAllProductComments(
+      productId,
+      queryCommentDto,
+    );
   }
 }
