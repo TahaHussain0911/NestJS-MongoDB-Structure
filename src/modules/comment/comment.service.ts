@@ -75,12 +75,22 @@ export class CommentService {
     const session = await this.connection.startSession();
     session.startTransaction();
     try {
-      await this.commentModel.deleteMany({
-        parent: convertStringToMongoIds(commentId),
-      });
-      await this.commentModel.deleteOne({
-        _id: commentId,
-      });
+      await this.commentModel.deleteMany(
+        {
+          parent: convertStringToMongoIds(commentId),
+        },
+        {
+          session,
+        },
+      );
+      await this.commentModel.deleteOne(
+        {
+          _id: commentId,
+        },
+        {
+          session,
+        },
+      );
       if (comment.parent) {
         await this.commentModel.updateOne(
           { _id: comment.parent },
@@ -88,6 +98,9 @@ export class CommentService {
             $inc: {
               replyCount: -1,
             },
+          },
+          {
+            session,
           },
         );
       }
