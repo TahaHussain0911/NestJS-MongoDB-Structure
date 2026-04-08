@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { MessageService } from './message.service';
-import { MessageController } from './message.controller';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { RoomModule } from '../room/room.module';
 import { Message, MessageSchema } from './message.schema';
+import { MessageService } from './message.service';
 
 @Module({
   imports: [
@@ -12,8 +12,8 @@ import { Message, MessageSchema } from './message.schema';
         schema: MessageSchema,
       },
     ]),
+    forwardRef(() => RoomModule),
   ],
-  controllers: [MessageController],
   providers: [MessageService],
   exports: [MessageService],
 })

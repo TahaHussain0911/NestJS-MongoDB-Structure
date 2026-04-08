@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Comment, CommentDocument } from './comment.schema';
 import { Connection, Model, Types } from 'mongoose';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -12,13 +12,17 @@ import { UserCommentPopulate } from 'src/common/populates/user.populate';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { convertStringToMongoIds } from 'src/utils/helper';
 import { QueryCommentDto } from './dto/query-comment.dto';
+import { ProductService } from '../product/product.service';
+import { Product, ProductDocument } from '../product/product.schema';
 
 @Injectable()
 export class CommentService {
   constructor(
     @InjectModel(Comment.name)
     private readonly commentModel: Model<CommentDocument>,
-    private readonly connection: Connection,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   async create(
@@ -26,14 +30,14 @@ export class CommentService {
     createCommentDto: CreateCommentDto,
   ): Promise<CommentResponseDto> {
     const { content, productId, parentId } = createCommentDto;
-    const product = await this.commentModel.findById(productId);
+    const product = await this.productModel.exists({ _id: productId });
     if (!product) {
       throw new BadRequestException('Product not found');
     }
     const createdComment = new this.commentModel({
       user: userId,
       content,
-      product: productId,
+      product: product._id,
     });
     if (parentId) {
       createdComment.parent = await this.validateCommentParent(parentId);

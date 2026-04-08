@@ -60,7 +60,7 @@ export class CommentController {
   @Delete(':commentId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth(SwaggerJwtAuth)
-  @ApiOperation({ summary: 'Update a comment' })
+  @ApiOperation({ summary: 'Delete a comment' })
   @ApiCreatedResponse({
     type: CommentResponseDto,
   })
