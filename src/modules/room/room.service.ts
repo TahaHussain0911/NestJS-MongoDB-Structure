@@ -1,13 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model, PipelineStage } from 'mongoose';
 import { RoomUserPopulate } from 'src/common/populates/room.populate';
 import { convertStringToMongoIds } from 'src/utils/helper';
 import { MessageService } from '../message/message.service';
 import { UserService } from '../user/user.service';
 import { CreateRoomDto } from './dto/create-room.dto';
-import { RoomResponseDto } from './dto/room-response.dto';
+import {
+  RoomPaginatedResponseDto,
+  RoomResponseDto,
+} from './dto/room-response.dto';
 import { Room, RoomDocument } from './room.schema';
+import { MessagePaginatedResponseDto } from '../message/dto/message-response.dto';
+import { QueryMessageDto } from '../message/dto/query-message.dto';
+import { QueryRoomDto } from './dto/query-room.dto';
 
 @Injectable()
 export class RoomService {
@@ -61,5 +67,160 @@ export class RoomService {
         latestMessage: message,
       },
     };
+  }
+
+  async findAllRooms(
+    userId: string,
+    queryRoomDto: QueryRoomDto,
+  ): Promise<RoomPaginatedResponseDto> {
+    const { search, page = 1, limit = 20 } = queryRoomDto;
+    const matchStage: mongoose.QueryFilter<RoomDocument> = {
+      participants: userId,
+    };
+
+    const pipelines: PipelineStage[] = [
+      {
+        $match: matchStage,
+      },
+      {
+        $lookup: {
+          localField: 'participants',
+          foreignField: '_id',
+          from: 'users',
+          as: 'participants',
+          pipeline: [
+            {
+              $project: {
+                name: 1,
+                email: 1,
+                photo: 1,
+                role: 1,
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    if (search) {
+      pipelines.push({
+        $match: {
+          participants: {
+            $elemMatch: {
+              _id: { $ne: userId },
+              name: {
+                $regex: search,
+                $options: 'i',
+              },
+            },
+          },
+        },
+      });
+    }
+    pipelines.push(
+      {
+        $lookup: {
+          from: 'messages',
+          as: 'latestMessage',
+          let: { roomId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$room', '$$roomId'] },
+              },
+            },
+            {
+              $sort: {
+                createdAt: -1,
+              },
+            },
+            { $limit: 1 },
+            {
+              $lookup: {
+                foreignField: '_id',
+                localField: 'sender',
+                from: 'users',
+                as: 'sender',
+                pipeline: [
+                  {
+                    $project: {
+                      name: 1,
+                      email: 1,
+                      photo: 1,
+                      role: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $unwind: {
+                path: '$sender',
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $lookup: {
+                foreignField: '_id',
+                localField: 'readBy',
+                from: 'users',
+                as: 'readBy',
+                pipeline: [
+                  {
+                    $project: {
+                      name: 1,
+                      email: 1,
+                      photo: 1,
+                      role: 1,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          latestMessage: { $arrayElemAt: ['$latestMessage', 0] },
+        },
+      },
+    );
+    pipelines.push({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [
+          { $sort: { updatedAt: -1 } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+        ],
+      },
+    });
+
+    const [result] = await this.roomModel.aggregate(pipelines);
+    const total = result.metadata?.[0]?.total || 0;
+
+    return {
+      page,
+      total,
+      data: result.data,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findAllMessages(
+    userId: string,
+    roomId: string,
+    queryMessageDto: QueryMessageDto,
+  ): Promise<MessagePaginatedResponseDto> {
+    const room = await this.roomModel.findOne({
+      _id: roomId,
+      participants: userId,
+    });
+    if (!room) {
+      throw new BadRequestException('Room not found');
+    }
+    const result = await this.messageService.findAll(roomId, queryMessageDto);
+    return result;
   }
 }

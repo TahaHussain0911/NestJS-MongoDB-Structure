@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Category } from '../category.schema';
+import { PaginatedResponseDto } from 'src/common/dto/pagination-response.dto';
 
 export class CategoryResponseDto {
   @ApiProperty({
@@ -8,16 +9,9 @@ export class CategoryResponseDto {
   category: Category;
 }
 
-export class CategoryPaginatedResponseDto {
-  @ApiProperty()
+export class CategoryPaginatedResponseDto extends PaginatedResponseDto {
+  @ApiProperty({
+    type: [CategoryResponseDto['category']],
+  })
   data: CategoryResponseDto['category'][];
-
-  @ApiProperty()
-  page: number;
-
-  @ApiProperty()
-  total: number;
-
-  @ApiProperty()
-  totalPages: number;
 }
