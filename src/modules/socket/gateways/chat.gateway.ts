@@ -8,7 +8,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { WsExceptionFilter } from 'src/common/filters/ws-exception.filter';
-import { ChatEvents } from '../events/chat.events';
+import { ChatListenEvents } from '../events/chat.events';
 
 export class SendMessageDto {
   roomId: string;
@@ -27,7 +27,7 @@ export class ChatGateway {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(ChatGateway.name);
 
-  @SubscribeMessage(ChatEvents.MESSAGE_SEND)
+  @SubscribeMessage(ChatListenEvents.MESSAGE_SEND)
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: SendMessageDto,
