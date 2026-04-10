@@ -19,6 +19,7 @@ import { RoomModule } from './modules/room/room.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { UserModule } from './modules/user/user.module';
 import { MessageModule } from './modules/message/message.module';
+import { SocketModule } from './modules/socket/socket.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { MessageModule } from './modules/message/message.module';
     CommentModule,
     RoomModule,
     MessageModule,
+    SocketModule,
   ],
   controllers: [AppController],
   providers: [

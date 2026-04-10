@@ -19,6 +19,6 @@ import { MessageModule } from '../message/message.module';
   ],
   controllers: [RoomController],
   providers: [RoomService],
-  exports: [RoomService],
+  exports: [MongooseModule],
 })
 export class RoomModule {}
