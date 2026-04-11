@@ -96,7 +96,7 @@ export class ConnectionGateway
     this.logger.log(`User connected to rooms ${rooms.length}`);
   }
 
-  private getUserId(client: Socket): string {
+  getUserId(client: Socket): string {
     const userId = client.data.userId;
     if (!userId) {
       throw new UnauthorizedException();

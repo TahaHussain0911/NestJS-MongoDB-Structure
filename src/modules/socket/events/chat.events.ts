@@ -25,3 +25,12 @@ export const ChatEmitEvents = {
   // Rooms
   ROOM_UPDATED: 'rooms.updated', // single update room
 };
+
+export const ChatFailedEvents = {
+  // Messages
+  MESSAGE_SEND: 'message.send-failed',
+  MESSAGE_READ: 'message.read-failed',
+
+  // Rooms
+  ROOM_JOIN: 'rooms.join-failed',
+};

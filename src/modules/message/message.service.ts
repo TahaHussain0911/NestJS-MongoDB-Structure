@@ -121,4 +121,21 @@ export class MessageService {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  async readAllRoomMessages(userId: string, roomId: string): Promise<string[]> {
+    const userObjectId = convertStringToMongoIds(userId);
+    const roomObjectId = convertStringToMongoIds(roomId);
+    const filter = {
+      room: roomObjectId,
+      sender: { $ne: userObjectId },
+      readBy: { $ne: userObjectId },
+    };
+    const messages = await this.messageModel.find(filter, { _id: 1 }).lean();
+    await this.messageModel.updateMany(filter, {
+      $addToSet: {
+        readBy: userObjectId,
+      },
+    });
+    return messages.map((message) => String(message._id));
+  }
 }
