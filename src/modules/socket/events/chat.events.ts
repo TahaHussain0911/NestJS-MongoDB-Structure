@@ -1,7 +1,7 @@
 // These events are emit from client
 export const ChatListenEvents = {
   // Messages
-  MESSAGE_SEND: 'messages.send',
+  MESSAGE_SEND: 'message.send',
   MESSAGE_MARK_ALL_READ: 'message.read_all',
 
   // Current user typing
@@ -9,21 +9,21 @@ export const ChatListenEvents = {
   MESSAGE_TYPING_STOP: 'message.typing.stop',
 
   // Rooms
-  ROOM_JOIN: 'rooms.join', // single room join
+  ROOM_JOIN: 'room.join', // single room join
 };
 
 // These events are listened on client
 export const ChatEmitEvents = {
   // Messages
-  MESSAGE_RECEIVE: 'messages.receive',
-  MESSAGE_READ: 'messages.read',
+  MESSAGE_RECEIVE: 'message.receive',
+  MESSAGE_READ: 'message.read',
 
   // Others users receiving
   MESSAGE_TYPING_STARTED: 'message.typing.started',
   MESSAGE_TYPING_STOPPED: 'message.typing.stopped',
 
   // Rooms
-  ROOM_UPDATED: 'rooms.updated', // single update room
+  ROOM_UPDATED: 'room.updated', // single update room
 };
 
 export const ChatFailedEvents = {

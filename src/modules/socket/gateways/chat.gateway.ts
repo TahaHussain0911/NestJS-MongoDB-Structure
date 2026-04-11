@@ -60,7 +60,7 @@ export class ChatGateway {
     const userId = this.connectionGateway.getUserId(client);
     try {
       const { content, roomId, attachment } = payload;
-      if (!content.trim() && !attachment) {
+      if (!content?.trim() && !attachment) {
         throw new BadRequestException('Message or attachment is required');
       }
       const room = await this.verifyRoom(userId, roomId);
@@ -130,6 +130,7 @@ export class ChatGateway {
       this.server.to(roomId).emit(ChatEmitEvents.MESSAGE_READ, {
         messageIds,
         roomId,
+        userId,
       });
       return { success: true };
     } catch (error) {
@@ -145,10 +146,12 @@ export class ChatGateway {
   }
 
   private async verifyRoom(userId: string, roomId: string): Promise<Room> {
-    const room = await this.roomModel.findOne({
-      _id: roomId,
-      participants: convertStringToMongoIds(userId),
-    });
+    const room = await this.roomModel
+      .findOne({
+        _id: roomId,
+        participants: convertStringToMongoIds(userId),
+      })
+      .lean();
     if (!room) {
       throw new NotFoundException('Room not found');
     }

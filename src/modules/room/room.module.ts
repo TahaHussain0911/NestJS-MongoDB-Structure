@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Room, RoomSchema } from './room.schema';
 import { UserModule } from '../user/user.module';
 import { MessageModule } from '../message/message.module';
+import { SocketModule } from '../socket/socket.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MessageModule } from '../message/message.module';
       },
     ]),
     forwardRef(() => MessageModule),
+    forwardRef(() => SocketModule),
     UserModule,
   ],
   controllers: [RoomController],

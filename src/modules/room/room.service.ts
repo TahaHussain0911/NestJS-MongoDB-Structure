@@ -14,6 +14,8 @@ import { Room, RoomDocument } from './room.schema';
 import { MessagePaginatedResponseDto } from '../message/dto/message-response.dto';
 import { QueryMessageDto } from '../message/dto/query-message.dto';
 import { QueryRoomDto } from './dto/query-room.dto';
+import { ChatGateway } from '../socket/gateways/chat.gateway';
+import { ChatEmitEvents } from '../socket/events/chat.events';
 
 @Injectable()
 export class RoomService {
@@ -21,6 +23,7 @@ export class RoomService {
     @InjectModel(Room.name) private readonly roomModel: Model<RoomDocument>,
     private readonly userService: UserService,
     private readonly messageService: MessageService,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   async create(
@@ -61,11 +64,33 @@ export class RoomService {
       room._id,
       rest,
     );
+    const finalizedRoom = {
+      ...room.toObject(),
+      latestMessage: message,
+    };
+    if (isNewRoom) {
+      room.participants.forEach((participant) => {
+        this.chatGateway.server
+          .in(String(participant._id)) // .in: get all sockets ids for that participant
+          .socketsJoin(String(room._id)); //.socketsJoin: all socketIds selected above, make them join the chat room.
+
+        if (String(currentUserId) !== String(participant._id)) {
+          this.chatGateway.server
+            .to(String(participant._id))
+            .emit(ChatEmitEvents.ROOM_UPDATED, {
+              room: finalizedRoom,
+            });
+        }
+      });
+    } else {
+      this.chatGateway.server
+        .to(String(room._id))
+        .emit(ChatEmitEvents.ROOM_UPDATED, {
+          room: finalizedRoom,
+        });
+    }
     return {
-      room: {
-        ...room.toObject(),
-        latestMessage: message,
-      },
+      room: finalizedRoom,
     };
   }
 
