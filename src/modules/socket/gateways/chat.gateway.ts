@@ -151,6 +151,46 @@ export class ChatGateway {
     }
   }
 
+  @SubscribeMessage(ChatListenEvents.MESSAGE_TYPING_START)
+  async handleTypingStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: RoomDto,
+  ) {
+    const userId = this.connectionGateway.getUserId(client);
+    try {
+      const { roomId } = payload;
+      await this.verifyRoom(userId, roomId);
+      client.to(roomId).emit(ChatEmitEvents.MESSAGE_TYPING_STARTED, {
+        roomId,
+        userId,
+      });
+      return { success: true };
+    } catch (error) {
+      this.logger.error(`Failed to handle typing start: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+  }
+
+  @SubscribeMessage(ChatListenEvents.MESSAGE_TYPING_STOP)
+  async handleTypingStop(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: RoomDto,
+  ) {
+    const userId = this.connectionGateway.getUserId(client);
+    try {
+      const { roomId } = payload;
+      await this.verifyRoom(userId, roomId);
+      client.to(roomId).emit(ChatEmitEvents.MESSAGE_TYPING_STOPPED, {
+        roomId,
+        userId,
+      });
+      return { success: true };
+    } catch (error) {
+      this.logger.error(`Failed to handle typing stop: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+  }
+
   private async verifyRoom(userId: string, roomId: string): Promise<Room> {
     const room = await this.roomModel
       .findOne({
