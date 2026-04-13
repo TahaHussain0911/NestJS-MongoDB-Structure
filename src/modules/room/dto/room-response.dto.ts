@@ -7,7 +7,7 @@ export class RoomResponseDto {
   @ApiProperty({
     type: Room,
   })
-  room: Room & { latestMessage: Message };
+  room: Room & { latestMessage: Message; unreadCount: number };
 }
 
 export class RoomPaginatedResponseDto extends PaginatedResponseDto {

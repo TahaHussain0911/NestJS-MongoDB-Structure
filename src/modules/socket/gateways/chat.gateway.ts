@@ -72,12 +72,18 @@ export class ChatGateway {
         message,
         roomId,
       });
-      this.server.to(roomId).emit(ChatEmitEvents.ROOM_UPDATED, {
-        room: {
-          ...room,
-          latestMessage: message,
-        },
-      });
+      for (const participant of room.participants) {
+        const participantIdStr = String(participant);
+        const participantUnreadCount = await this.messageService.countUnreadMessages(roomId, participantIdStr);
+
+        this.server.to(participantIdStr).emit(ChatEmitEvents.ROOM_UPDATED, {
+          room: {
+            ...room,
+            latestMessage: message,
+            unreadCount: participantUnreadCount,
+          },
+        });
+      }
       this.logger.log(
         `User ${userId} sending message to room ${payload.roomId}`,
       );

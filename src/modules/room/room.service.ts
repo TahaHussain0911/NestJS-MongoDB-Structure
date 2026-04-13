@@ -67,28 +67,35 @@ export class RoomService {
     const finalizedRoom = {
       ...room.toObject(),
       latestMessage: message,
+      unreadCount: await this.messageService.countUnreadMessages(String(room._id), currentUserId),
     };
-    if (isNewRoom) {
-      room.participants.forEach((participant) => {
-        this.chatGateway.server
-          .in(String(participant._id)) // .in: get all sockets ids for that participant
-          .socketsJoin(String(room._id)); //.socketsJoin: all socketIds selected above, make them join the chat room.
 
-        if (String(currentUserId) !== String(participant._id)) {
-          this.chatGateway.server
-            .to(String(participant._id))
-            .emit(ChatEmitEvents.ROOM_UPDATED, {
-              room: finalizedRoom,
-            });
-        }
-      });
-    } else {
-      this.chatGateway.server
-        .to(String(room._id))
-        .emit(ChatEmitEvents.ROOM_UPDATED, {
-          room: finalizedRoom,
-        });
+    for (const participant of room.participants) {
+      const participantIdStr = String(participant._id);
+
+      if (isNewRoom) {
+        this.chatGateway.server
+          .in(participantIdStr)
+          .socketsJoin(String(room._id));
+      }
+
+      const participantUnreadCount = await this.messageService.countUnreadMessages(String(room._id), participantIdStr);
+      
+      const payloadRoom = {
+        ...room.toObject(),
+        latestMessage: message,
+        unreadCount: participantUnreadCount,
+      };
+
+      if (!isNewRoom || participantIdStr !== String(currentUserId)) {
+        this.chatGateway.server
+          .to(participantIdStr)
+          .emit(ChatEmitEvents.ROOM_UPDATED, {
+            room: payloadRoom,
+          });
+      }
     }
+
     return {
       room: finalizedRoom,
     };
@@ -208,6 +215,31 @@ export class RoomService {
       {
         $addFields: {
           latestMessage: { $arrayElemAt: ['$latestMessage', 0] },
+        },
+      },
+      {
+        $lookup: {
+          from: 'messages',
+          as: 'unreadCount',
+          let: { roomId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$room', '$$roomId'] },
+                readBy: { $ne: convertStringToMongoIds(userId) },
+              },
+            },
+            {
+              $count: 'count',
+            },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          unreadCount: {
+            $ifNull: [{ $arrayElemAt: ['$unreadCount.count', 0] }, 0],
+          },
         },
       },
     );

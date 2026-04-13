@@ -138,4 +138,14 @@ export class MessageService {
     });
     return messages.map((message) => String(message._id));
   }
+
+  async countUnreadMessages(roomId: string, userId: string): Promise<number> {
+    const userObjectId = convertStringToMongoIds(userId);
+    const roomObjectId = convertStringToMongoIds(roomId);
+    return this.messageModel.countDocuments({
+      room: roomObjectId,
+      sender: { $ne: userObjectId },
+      readBy: { $ne: userObjectId },
+    });
+  }
 }
