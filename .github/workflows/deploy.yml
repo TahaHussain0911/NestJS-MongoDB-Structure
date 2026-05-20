@@ -30,7 +30,7 @@ jobs:
             dist/ \
             package.json \
             package-lock.json \
-            ecosystem.config.cjs
+            ecosystem.config.js
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -99,7 +99,7 @@ jobs:
             if [ -d "dist" ]; then
               timestamp=$(date +%Y%m%d_%H%M%S)
               mkdir -p backups
-              tar -czf backups/backup_${timestamp}.tar.gz dist package.json ecosystem.config.cjs .env 2>/dev/null || true
+              tar -czf backups/backup_${timestamp}.tar.gz dist package.json ecosystem.config.js .env 2>/dev/null || true
               # Keep only last 5 backups
               ls -t backups/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm
             fi
@@ -125,10 +125,10 @@ jobs:
             # Zero-downtime reload with PM2
             if pm2 describe nestjs-app > /dev/null 2>&1; then
               echo "Reloading PM2 app (zero-downtime)..."
-              pm2 reload ecosystem.config.cjs --update-env
+              pm2 reload ecosystem.config.js --update-env
             else
               echo "Starting new PM2 process..."
-              pm2 start ecosystem.config.cjs
+              pm2 start ecosystem.config.js
             fi
 
             # Save PM2 process list
