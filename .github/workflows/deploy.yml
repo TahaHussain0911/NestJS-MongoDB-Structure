@@ -52,21 +52,38 @@ jobs:
         with:
           name: deployment-package
 
+      - name: Write .env file to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            printf 'PORT=%s\n' '${{ secrets.PORT }}' > /var/www/nestjs-app/.env
+            printf 'DATABASE_URL=%s\n' '${{ secrets.DATABASE_URL }}' >> /var/www/nestjs-app/.env
+            printf 'JWT_SECRET=%s\n' '${{ secrets.JWT_SECRET }}' >> /var/www/nestjs-app/.env
+            printf 'JWT_EXPIRES_IN=%s\n' '${{ secrets.JWT_EXPIRES_IN }}' >> /var/www/nestjs-app/.env
+            printf 'JWT_REFRESH_SECRET=%s\n' '${{ secrets.JWT_REFRESH_SECRET }}' >> /var/www/nestjs-app/.env
+            printf 'AWS_S3_REGION=%s\n' '${{ secrets.AWS_S3_REGION }}' >> /var/www/nestjs-app/.env
+            printf 'AWS_S3_BUCKET_NAME=%s\n' '${{ secrets.AWS_S3_BUCKET_NAME }}' >> /var/www/nestjs-app/.env
+            printf 'AWS_S3_ACCESS_KEY_ID=%s\n' '${{ secrets.AWS_S3_ACCESS_KEY_ID }}' >> /var/www/nestjs-app/.env
+            printf 'AWS_S3_SECRET_KEY=%s\n' '${{ secrets.AWS_S3_SECRET_KEY }}' >> /var/www/nestjs-app/.env
+            printf 'STRIPE_SECRET_KEY=%s\n' '${{ secrets.STRIPE_SECRET_KEY }}' >> /var/www/nestjs-app/.env
+            printf 'STRIPE_WEBHOOK_SECRET=%s\n' '${{ secrets.STRIPE_WEBHOOK_SECRET }}' >> /var/www/nestjs-app/.env
+            printf 'FRONTEND_SUCCESS_URL=%s\n' '${{ secrets.FRONTEND_SUCCESS_URL }}' >> /var/www/nestjs-app/.env
+            printf 'FRONTEND_CANCEL_URL=%s\n' '${{ secrets.FRONTEND_CANCEL_URL }}' >> /var/www/nestjs-app/.env
+            printf 'SMTP_EMAIL=%s\n' '${{ secrets.SMTP_EMAIL }}' >> /var/www/nestjs-app/.env
+            printf 'SMTP_HOST=%s\n' '${{ secrets.SMTP_HOST }}' >> /var/www/nestjs-app/.env
+            printf 'SMTP_PASSWORD=%s\n' '${{ secrets.SMTP_PASSWORD }}' >> /var/www/nestjs-app/.env
+            printf 'BASE_URL=%s\n' '${{ secrets.BASE_URL }}' >> /var/www/nestjs-app/.env
+
       - name: Deploy to EC2 via SSH
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USERNAME: ${{ secrets.EC2_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          echo "$SSH_PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-
-          scp -i private_key.pem -o StrictHostKeyChecking=no \
-            deploy.tar.gz ${EC2_USERNAME}@${EC2_HOST}:/tmp/
-
-          ssh -i private_key.pem -o StrictHostKeyChecking=no \
-            ${EC2_USERNAME}@${EC2_HOST} << 'EOF'
-
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
             cd /var/www/nestjs-app
 
             # Fix ownership
@@ -92,36 +109,7 @@ jobs:
 
             mkdir -p logs
 
-          EOF
-
-          # Write .env file separately (keeps secrets out of heredoc)
-          ssh -i private_key.pem -o StrictHostKeyChecking=no \
-            ${EC2_USERNAME}@${EC2_HOST} "cat > /var/www/nestjs-app/.env << 'ENVEOF'
-PORT=${{ secrets.PORT }}
-DATABASE_URL=${{ secrets.DATABASE_URL }}
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}
-JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-AWS_S3_REGION=${{ secrets.AWS_S3_REGION }}
-AWS_S3_BUCKET_NAME=${{ secrets.AWS_S3_BUCKET_NAME }}
-AWS_S3_ACCESS_KEY_ID=${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-AWS_S3_SECRET_KEY=${{ secrets.AWS_S3_SECRET_KEY }}
-STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
-STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
-FRONTEND_SUCCESS_URL=${{ secrets.FRONTEND_SUCCESS_URL }}
-FRONTEND_CANCEL_URL=${{ secrets.FRONTEND_CANCEL_URL }}
-SMTP_EMAIL=${{ secrets.SMTP_EMAIL }}
-SMTP_HOST=${{ secrets.SMTP_HOST }}
-SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
-BASE_URL=${{ secrets.BASE_URL }}
-ENVEOF"
-
-          # Restart PM2
-          ssh -i private_key.pem -o StrictHostKeyChecking=no \
-            ${EC2_USERNAME}@${EC2_HOST} << 'EOF'
-
-            cd /var/www/nestjs-app
-
+            # Reload or start PM2
             if pm2 describe nestjs-app > /dev/null 2>&1; then
               echo "Reloading PM2 (zero-downtime)..."
               pm2 reload ecosystem.config.js --update-env
@@ -131,8 +119,17 @@ ENVEOF"
             fi
 
             pm2 save
-          EOF
 
+      - name: Copy deployment package to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          scp -i private_key.pem -o StrictHostKeyChecking=no \
+            deploy.tar.gz ${EC2_USERNAME}@${EC2_HOST}:/tmp/
           rm private_key.pem
 
       - name: Verify deployment
@@ -160,19 +157,13 @@ ENVEOF"
 
       - name: Rollback on failure
         if: failure()
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USERNAME: ${{ secrets.EC2_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          echo "🔄 Rolling back to previous version..."
-
-          echo "$SSH_PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-
-          ssh -i private_key.pem -o StrictHostKeyChecking=no \
-            ${EC2_USERNAME}@${EC2_HOST} << 'EOF'
-
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "🔄 Rolling back to previous version..."
             cd /var/www/nestjs-app
             sudo chown -R $USER:$USER /var/www/nestjs-app
 
@@ -187,6 +178,3 @@ ENVEOF"
             else
               echo "⚠️ No backup found"
             fi
-          EOF
-
-          rm private_key.pem
