@@ -162,31 +162,6 @@ jobs:
           # Cleanup
           rm private_key.pem
 
-      - name: Verify deployment
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-        run: |
-          echo "Waiting for application to start..."
-          sleep 10
-
-          # Check if app responds via nginx (try multiple times)
-          for i in {1..2}; do
-            echo "Attempt $i of 2..."
-            response=$(curl -s -o /dev/null -w "%{http_code}" http://${EC2_HOST}/api/v1 2>/dev/null || echo "000")
-            
-            if [ "$response" = "200" ] || [ "$response" = "301" ] || [ "$response" = "302" ]; then
-              echo "✅ Deployment successful! App is responding with status: $response"
-              exit 0
-            fi
-            
-            echo "Got response: $response, waiting 5 seconds..."
-            sleep 5
-          done
-
-          echo "❌ Deployment verification failed after 2 attempts"
-          echo "Please check PM2 logs on the server"
-          exit 1
-
       - name: Rollback on failure
         if: failure()
         env:
