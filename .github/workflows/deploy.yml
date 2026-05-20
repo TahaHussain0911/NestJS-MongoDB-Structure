@@ -60,6 +60,23 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          PORT: ${{ secrets.PORT }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
+          AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+          AWS_S3_ACCESS_KEY_ID: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
+          AWS_S3_SECRET_KEY: ${{ secrets.AWS_S3_SECRET_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          FRONTEND_SUCCESS_URL: ${{ secrets.FRONTEND_SUCCESS_URL }}
+          FRONTEND_CANCEL_URL: ${{ secrets.FRONTEND_CANCEL_URL }}
+          SMTP_EMAIL: ${{ secrets.SMTP_EMAIL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          BASE_URL: ${{ secrets.BASE_URL }}
         run: |
           # Create SSH key file
           echo "$SSH_PRIVATE_KEY" > private_key.pem
@@ -98,18 +115,32 @@ jobs:
             # Fix ownership after extraction
             sudo chown -R $USER:$USER /var/www/nestjs-app
             
+            # Create .env file from secrets
+            cat > .env <<'ENV'
+NODE_ENV=production
+PORT=${PORT}
+DATABASE_URL=${DATABASE_URL}
+JWT_SECRET=${JWT_SECRET}
+JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+AWS_S3_REGION=${AWS_S3_REGION}
+AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+AWS_S3_ACCESS_KEY_ID=${AWS_S3_ACCESS_KEY_ID}
+AWS_S3_SECRET_KEY=${AWS_S3_SECRET_KEY}
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+FRONTEND_SUCCESS_URL=${FRONTEND_SUCCESS_URL}
+FRONTEND_CANCEL_URL=${FRONTEND_CANCEL_URL}
+SMTP_EMAIL=${SMTP_EMAIL}
+SMTP_HOST=${SMTP_HOST}
+SMTP_PASSWORD=${SMTP_PASSWORD}
+BASE_URL=${BASE_URL}
+ENV
             
             # Install production dependencies on the server
             echo ""
             echo "Installing production dependencies..."
             npm ci
-            
-            # Create .env file if needed (only on first deploy)
-            if [ ! -f .env ]; then
-              echo "Creating default .env file..."
-              echo "NODE_ENV=production" > .env
-              echo "PORT=8000" >> .env
-            fi
             
             # Create logs directory
             mkdir -p logs
