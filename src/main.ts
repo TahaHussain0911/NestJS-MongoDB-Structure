@@ -12,6 +12,11 @@ import {
   SwaggerTitle,
 } from './utils/swagger.constants';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import dns from 'dns';
+dns.setServers([
+  "1.1.1.1",
+  "8.8.8.8"
+])
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
