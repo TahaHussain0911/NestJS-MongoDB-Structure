@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import {
   SwaggerCustomCss,
   SwaggerDescription,
+  SwaggerEc2Server,
   SwaggerJwtAuth,
   SwaggerLocalServer,
   SwaggerNgrokServer,
@@ -59,6 +60,7 @@ async function bootstrap() {
       },
       SwaggerRefreshTokenAuth,
     )
+    .addServer(SwaggerEc2Server, 'Deployed Server')
     .addServer(SwaggerLocalServer, 'Local Server')
     .addServer(SwaggerNgrokServer, 'Ngrok Server')
     .build();
