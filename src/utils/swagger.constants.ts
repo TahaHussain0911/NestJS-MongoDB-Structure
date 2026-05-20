@@ -3,7 +3,7 @@ const SwaggerDescription = 'API Documentation of application';
 const SwaggerJwtAuth = 'JWT-auth';
 const SwaggerRefreshTokenAuth = 'JWT-refresh';
 
-const SwaggerLocalServer = `http://localhost:3001`;
+const SwaggerLocalServer = `http://localhost:3000`;
 const SwaggerEc2Server = `http://ec2-98-91-191-130.compute-1.amazonaws.com`;
 const SwaggerNgrokServer = `https://4a03-31-215-146-89.ngrok-free.app`;
 const SwaggerCustomCss = `
