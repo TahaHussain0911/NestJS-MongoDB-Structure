@@ -52,19 +52,24 @@ jobs:
         with:
           name: deployment-package
 
-      - name: Setup SSH private key
-        run: |
-          printf '%s\n' "$EC2_SSH_KEY" > private_key.pem
-          chmod 600 private_key.pem
+      - name: Copy deployment package to EC2
         env:
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          scp -i private_key.pem -o StrictHostKeyChecking=no \
+            deploy.tar.gz ${EC2_USERNAME}@${EC2_HOST}:/tmp/
+          rm private_key.pem
 
       - name: Write .env file to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key_path: private_key.pem
+          key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
             printf 'PORT=%s\n' '${{ secrets.PORT }}' > /var/www/nestjs-app/.env
@@ -85,24 +90,12 @@ jobs:
             printf 'SMTP_PASSWORD=%s\n' '${{ secrets.SMTP_PASSWORD }}' >> /var/www/nestjs-app/.env
             printf 'BASE_URL=%s\n' '${{ secrets.BASE_URL }}' >> /var/www/nestjs-app/.env
 
-      - name: Copy deployment package to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USERNAME: ${{ secrets.EC2_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          printf '%s\n' "$SSH_PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          scp -i private_key.pem -o StrictHostKeyChecking=no \
-            deploy.tar.gz ${EC2_USERNAME}@${EC2_HOST}:/tmp/
-          rm private_key.pem
-
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key_path: private_key.pem
+          key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
             cd /var/www/nestjs-app
@@ -170,7 +163,7 @@ jobs:
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
-          key_path: private_key.pem
+          key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
             echo "🔄 Rolling back to previous version..."
