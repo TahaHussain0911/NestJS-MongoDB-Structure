@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  workflow_dispatch: # manual trigger
 
 jobs:
   build:
@@ -24,14 +24,17 @@ jobs:
         run: npm ci
 
       - name: Build TypeScript
-        run: NODE_OPTIONS="--max-old-space-size=1536" npm run build
+        run: npm run build
 
-      - name: Create deployment package
+      - name: Create deployment package (without node_modules)
         run: |
           mkdir -p deploy
           cp -r dist deploy/
+          cp -r src deploy/
           cp package*.json deploy/
           cp ecosystem.config.js deploy/
+          # Copy .env.example if exists
+          [ -f .env.example ] && cp .env.example deploy/ || echo "No .env.example found"
           tar -czf deploy.tar.gz -C deploy .
 
       - name: Upload build artifact
@@ -52,110 +55,170 @@ jobs:
         with:
           name: deployment-package
 
-      - name: Create SSH private key file
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-        run: |
-          printf '%s\n' "$SSH_PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-
-      - name: Copy deployment package to EC2
+      - name: Deploy to EC2 via SSH
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          PORT: ${{ secrets.PORT }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          AWS_S3_REGION: ${{ secrets.AWS_S3_REGION }}
+          AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+          AWS_S3_ACCESS_KEY_ID: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
+          AWS_S3_SECRET_KEY: ${{ secrets.AWS_S3_SECRET_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          FRONTEND_SUCCESS_URL: ${{ secrets.FRONTEND_SUCCESS_URL }}
+          FRONTEND_CANCEL_URL: ${{ secrets.FRONTEND_CANCEL_URL }}
+          SMTP_EMAIL: ${{ secrets.SMTP_EMAIL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          BASE_URL: ${{ secrets.BASE_URL }}
         run: |
-          if [ -z "$EC2_USER" ] || [ -z "$EC2_HOST" ]; then
-            echo "EC2_HOST or EC2_USER is missing"
-            exit 1
-          fi
-          scp -i private_key.pem -o StrictHostKeyChecking=no \
-            deploy.tar.gz ${EC2_USER}@${EC2_HOST}:/tmp/
+          # Create SSH key file
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
 
-      - name: Write .env and deploy
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key_path: private_key.pem
-          port: 22
-          script: |
+          # Copy deployment package to EC2
+          scp -i private_key.pem -o StrictHostKeyChecking=no \
+            deploy.tar.gz ${EC2_USERNAME}@${EC2_HOST}:/tmp/
+
+          # SSH into EC2 and deploy
+          ssh -i private_key.pem -o StrictHostKeyChecking=no \
+            ${EC2_USERNAME}@${EC2_HOST} << EOF
+            
+            # Navigate to app directory
             cd /var/www/nestjs-app
 
-            # Fix ownership
-            sudo chown -R $USER:$USER /var/www/nestjs-app
-
+            # Fix ownership first (important!)
+            echo "Fixing directory ownership..."
+            sudo chown -R \$USER:\$USER /var/www/nestjs-app
+            
+            
             # Backup current version
             if [ -d "dist" ]; then
-              timestamp=$(date +%Y%m%d_%H%M%S)
+              timestamp=\$(date +%Y%m%d_%H%M%S)
               mkdir -p backups
-              tar -czf backups/backup_${timestamp}.tar.gz dist package.json ecosystem.config.js .env 2>/dev/null || true
+              tar -czf backups/backup_\${timestamp}.tar.gz dist package.json ecosystem.config.js .env 2>/dev/null || true
+              # Keep only last 5 backups
               ls -t backups/backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm
             fi
-
-            # Extract new build
+            
+            # Extract new version (this will overwrite existing files)
+            echo "Extracting new deployment package..."
             tar --overwrite -xzf /tmp/deploy.tar.gz -C /var/www/nestjs-app
             rm /tmp/deploy.tar.gz
 
             # Fix ownership after extraction
-            sudo chown -R $USER:$USER /var/www/nestjs-app
-
-            # Write .env file
-            printf 'NODE_ENV=production\n' > /var/www/nestjs-app/.env
-            printf 'PORT=%s\n' '${{ secrets.PORT }}' >> /var/www/nestjs-app/.env
-            printf 'DATABASE_URL=%s\n' '${{ secrets.DATABASE_URL }}' >> /var/www/nestjs-app/.env
-            printf 'JWT_SECRET=%s\n' '${{ secrets.JWT_SECRET }}' >> /var/www/nestjs-app/.env
-            printf 'JWT_EXPIRES_IN=%s\n' '${{ secrets.JWT_EXPIRES_IN }}' >> /var/www/nestjs-app/.env
-            printf 'JWT_REFRESH_SECRET=%s\n' '${{ secrets.JWT_REFRESH_SECRET }}' >> /var/www/nestjs-app/.env
-            printf 'AWS_S3_REGION=%s\n' '${{ secrets.AWS_S3_REGION }}' >> /var/www/nestjs-app/.env
-            printf 'AWS_S3_BUCKET_NAME=%s\n' '${{ secrets.AWS_S3_BUCKET_NAME }}' >> /var/www/nestjs-app/.env
-            printf 'AWS_S3_ACCESS_KEY_ID=%s\n' '${{ secrets.AWS_S3_ACCESS_KEY_ID }}' >> /var/www/nestjs-app/.env
-            printf 'AWS_S3_SECRET_KEY=%s\n' '${{ secrets.AWS_S3_SECRET_KEY }}' >> /var/www/nestjs-app/.env
-            printf 'STRIPE_SECRET_KEY=%s\n' '${{ secrets.STRIPE_SECRET_KEY }}' >> /var/www/nestjs-app/.env
-            printf 'STRIPE_WEBHOOK_SECRET=%s\n' '${{ secrets.STRIPE_WEBHOOK_SECRET }}' >> /var/www/nestjs-app/.env
-            printf 'FRONTEND_SUCCESS_URL=%s\n' '${{ secrets.FRONTEND_SUCCESS_URL }}' >> /var/www/nestjs-app/.env
-            printf 'FRONTEND_CANCEL_URL=%s\n' '${{ secrets.FRONTEND_CANCEL_URL }}' >> /var/www/nestjs-app/.env
-            printf 'SMTP_EMAIL=%s\n' '${{ secrets.SMTP_EMAIL }}' >> /var/www/nestjs-app/.env
-            printf 'SMTP_HOST=%s\n' '${{ secrets.SMTP_HOST }}' >> /var/www/nestjs-app/.env
-            printf 'SMTP_PASSWORD=%s\n' '${{ secrets.SMTP_PASSWORD }}' >> /var/www/nestjs-app/.env
-            printf 'BASE_URL=%s\n' '${{ secrets.BASE_URL }}' >> /var/www/nestjs-app/.env
-
-            # Install production dependencies
-            npm ci --omit=dev
-
+            sudo chown -R \$USER:\$USER /var/www/nestjs-app
+            
+            # Create .env file from secrets
+            cat > .env << ENV
+NODE_ENV=production
+PORT=${PORT}
+DATABASE_URL=${DATABASE_URL}
+JWT_SECRET=${JWT_SECRET}
+JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+AWS_S3_REGION=${AWS_S3_REGION}
+AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME}
+AWS_S3_ACCESS_KEY_ID=${AWS_S3_ACCESS_KEY_ID}
+AWS_S3_SECRET_KEY=${AWS_S3_SECRET_KEY}
+STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+FRONTEND_SUCCESS_URL=${FRONTEND_SUCCESS_URL}
+FRONTEND_CANCEL_URL=${FRONTEND_CANCEL_URL}
+SMTP_EMAIL=${SMTP_EMAIL}
+SMTP_HOST=${SMTP_HOST}
+SMTP_PASSWORD=${SMTP_PASSWORD}
+BASE_URL=${BASE_URL}
+ENV
+            
+            # Install production dependencies on the server
+            echo ""
+            echo "Installing production dependencies..."
+            npm ci
+            
+            # Create logs directory
             mkdir -p logs
-
-            # Reload or start PM2
+            
+            # Zero-downtime reload with PM2
             if pm2 describe nestjs-app > /dev/null 2>&1; then
-              echo "Reloading PM2 (zero-downtime)..."
-              pm2 reload ecosystem.config.js --update-env
+              echo "Reloading PM2 app (zero-downtime)..."
+              sudo pm2 reload ecosystem.config.js --update-env
             else
-              echo "Starting PM2 fresh..."
-              pm2 start ecosystem.config.js
+              echo "Starting new PM2 process..."
+              sudo pm2 start ecosystem.config.js
             fi
+            
+            # Save PM2 process list
+            sudo pm2 save
+           
+          EOF
 
-            pm2 save
+          # Cleanup
+          rm private_key.pem
+
+      - name: Verify deployment
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          echo "Waiting for application to start..."
+          sleep 10
+
+          # Check if app responds via nginx (try multiple times)
+          for i in {1..2}; do
+            echo "Attempt $i of 2..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://${EC2_HOST}/api/v1 2>/dev/null || echo "000")
+            
+            if [ "$response" = "200" ] || [ "$response" = "301" ] || [ "$response" = "302" ]; then
+              echo "✅ Deployment successful! App is responding with status: $response"
+              exit 0
+            fi
+            
+            echo "Got response: $response, waiting 5 seconds..."
+            sleep 5
+          done
+
+          echo "❌ Deployment verification failed after 2 attempts"
+          echo "Please check PM2 logs on the server"
+          exit 1
 
       - name: Rollback on failure
         if: failure()
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            echo "🔄 Rolling back to previous version..."
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "🔄 Attempting to rollback to previous version..."
+
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          ssh -i private_key.pem -o StrictHostKeyChecking=no \
+            ${EC2_USERNAME}@${EC2_HOST} << 'EOF'
+            
             cd /var/www/nestjs-app
+
+            # Fix ownership first (important!)
             sudo chown -R $USER:$USER /var/www/nestjs-app
-
+            
+            # Find latest backup
             latest_backup=$(ls -t backups/backup_*.tar.gz 2>/dev/null | head -1)
-
+            
             if [ -n "$latest_backup" ]; then
-              echo "Restoring: $latest_backup"
+              echo "Found backup: $latest_backup"
               tar -xzf "$latest_backup" -C /var/www/nestjs-app
-              npm ci --omit=dev
+              npm ci
               pm2 reload ecosystem.config.js
-              echo "✅ Rollback successful"
+              echo "✅ Rolled back to previous version"
             else
-              echo "⚠️ No backup found"
+              echo "⚠️ No backup found, cannot rollback"
             fi
+          EOF
+
+          rm private_key.pem
