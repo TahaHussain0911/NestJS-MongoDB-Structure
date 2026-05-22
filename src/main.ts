@@ -14,14 +14,21 @@ import {
 } from './utils/swagger.constants';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import dns from 'dns';
-dns.setServers([
-  "1.1.1.1",
-  "8.8.8.8"
-])
+dns.setServers(['1.1.1.1', '8.8.8.8']);
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+  });
+  app.enableCors({
+    origin: '*', // or specify your frontend URL
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'ngrok-skip-browser-warning',
+    ],
+    credentials: true, // only if you're sending cookies/auth headers
   });
   app.setViewEngine('ejs');
   app.setGlobalPrefix('api/v1', {

@@ -41,8 +41,8 @@ export class UserController {
     return this.userService.findAll(queryUserDto);
   }
 
-  @Get('admin/:id')
-  @Roles(Role.ADMIN)
+  @Get(':id')
+  // @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Get single user details [Admin role]',
   })
